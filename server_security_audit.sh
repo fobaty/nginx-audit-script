@@ -2,7 +2,7 @@
 
 # ==============================================================================
 # Server Security Audit Script
-# Version: 1.0
+# Version: 1.1
 # Author: Oleksii Shataliuk
 # Date: July 28, 2025
 # Description: This script performs a basic security audit of a web server
@@ -17,14 +17,12 @@
 DOMAIN="your-domain.com"
 # Root directory of your website (e.g., /var/www/html or /var/www/your-domain.com/html)
 WEB_ROOT="/var/www/your-domain.com/html"
-# URL of your GoAccess report page (assuming HTTPS)
-REPORT_URL="https://${DOMAIN}/report.html"
 # Nginx configuration directory
 NGINX_CONF_DIR="/etc/nginx"
 # Path to your Nginx site-specific configuration file
 NGINX_SITES_AVAILABLE="/etc/nginx/sites-available/${DOMAIN}"
-# Path to your htpasswd file for basic authentication (if used for report.html)
-HTPASSWD_FILE="/etc/nginx/.htpasswd_goaccess"
+# Path to your htpasswd file for basic authentication (if used for admin interfaces etc.)
+HTPASSWD_FILE="/etc/nginx/.htpasswd_admin" # Renamed to be more general if not specifically for GoAccess
 # Path to the openssl executable (for SSL/TLS checks)
 OPENSSL_PATH="/usr/bin/openssl"
 
@@ -108,22 +106,8 @@ echo "=== Extended Server Security Audit ($DOMAIN) ==="
 echo "Audit started at: $(date)"
 echo "----------------------------------------"
 
-# 1. Check if report.html is password protected
-echo "1. Checking password protection for ${REPORT_URL}..."
-HTTP_CODE=$(curl -s -L -o /dev/null -w "%{http_code}" "$REPORT_URL")
-if [ "$HTTP_CODE" -eq 401 ]; then
-    echo "   [OK] Page ${REPORT_URL} is password protected (HTTP 401 Unauthorized)."
-elif [ "$HTTP_CODE" -eq 200 ]; then
-    echo "   [WARNING] Page ${REPORT_URL} is accessible without a password (HTTP 200 OK). This is insecure."
-elif [ "$HTTP_CODE" -eq 301 ] || [ "$HTTP_CODE" -eq 302 ]; then
-    echo "   [INFO] Page ${REPORT_URL} redirects (HTTP ${HTTP_CODE}). Please check the target URL."
-else
-    echo "   [WARNING] Unexpected HTTP code for ${REPORT_URL}: ${HTTP_CODE}. Possible access or configuration issue."
-fi
-echo ""
-
-# 2. Check accessibility of known sensitive files and admin panels via web
-echo "2. Checking accessibility of known sensitive paths and admin panels..."
+# 1. Check accessibility of known sensitive files and admin panels via web
+echo "1. Checking accessibility of known sensitive paths and admin panels..."
 for path in "${SENSITIVE_PATHS[@]}"; do
     TARGET_URL="https://${DOMAIN}${path}"
     HTTP_CODE_PATH=$(curl -s -L -o /dev/null -w "%{http_code}" "$TARGET_URL")
@@ -139,8 +123,8 @@ for path in "${SENSITIVE_PATHS[@]}"; do
 done
 echo ""
 
-# 3. Check UFW (firewall) status
-echo "3. Checking UFW (firewall) status..."
+# 2. Check UFW (firewall) status
+echo "2. Checking UFW (firewall) status..."
 UFW_STATUS=$(sudo ufw status | grep Status | awk '{print $2}')
 if [ "$UFW_STATUS" == "active" ]; then
     echo "   [OK] UFW is active."
@@ -155,8 +139,8 @@ else
 fi
 echo ""
 
-# 4. Check file permissions for critical Nginx files and web root
-echo "4. Checking file permissions for Nginx files and web root..."
+# 3. Check file permissions for critical Nginx files and web root
+echo "3. Checking file permissions for Nginx files and web root..."
 CRITICAL_FILES=(
     "$NGINX_CONF_DIR/nginx.conf"
     "$NGINX_SITES_AVAILABLE"
@@ -215,8 +199,8 @@ else
 fi
 echo ""
 
-# 5. Check HTTP to HTTPS redirect
-echo "5. Checking HTTP to HTTPS redirect..."
+# 4. Check HTTP to HTTPS redirect
+echo "4. Checking HTTP to HTTPS redirect..."
 HTTP_URL="http://${DOMAIN}"
 HTTPS_REDIRECT_CODE=$(curl -s -L -o /dev/null -w "%{http_code}" "$HTTP_URL")
 FINAL_URL=$(curl -s -L -o /dev/null -w "%{url_effective}" "$HTTP_URL")
@@ -228,8 +212,8 @@ else
 fi
 echo ""
 
-# 6. Check for server_tokens off in Nginx
-echo "6. Checking for Nginx version hiding (server_tokens off)..."
+# 5. Check for server_tokens off in Nginx
+echo "5. Checking for Nginx version hiding (server_tokens off)..."
 if sudo grep -q "server_tokens off;" "$NGINX_CONF_DIR/nginx.conf" || sudo grep -q "server_tokens off;" "$NGINX_SITES_AVAILABLE"; then
     echo "   [OK] 'server_tokens off;' found in Nginx configuration. Server version is hidden."
 else
@@ -237,10 +221,10 @@ else
 fi
 echo ""
 
-# 7. Check HTTP Security Headers (for the main domain/report page)
-echo "7. Checking HTTP Security Headers for ${REPORT_URL} (first 100 characters of headers)..."
+# 6. Check HTTP Security Headers (for the main domain)
+echo "6. Checking HTTP Security Headers for https://${DOMAIN} (first 100 characters of headers)..."
 # Fetch headers, limit to first 100 lines for efficiency, convert CRLF to LF
-HEADERS=$(curl -s -D - -o /dev/null "$REPORT_URL" | head -n 100 | tr '\r' '\n')
+HEADERS=$(curl -s -D - -o /dev/null "https://${DOMAIN}" | head -n 100 | tr '\r' '\n')
 
 # Helper function to check for a specific header
 function check_header() {
@@ -269,11 +253,10 @@ check_header "X-XSS-Protection" "1; mode=block"
 
 echo ""
 
-# 8. Basic SSL/TLS Configuration Check (TLSv1.3 support, no TLSv1.0/1.1)
-echo "8. Basic SSL/TLS configuration check for Nginx..."
+# 7. Basic SSL/TLS Configuration Check (TLSv1.3 support, no TLSv1.0/1.1)
+echo "7. Basic SSL/TLS configuration check for Nginx..."
 if command -v $OPENSSL_PATH &> /dev/null; then
     echo "   Checking for TLSv1.3 support..."
-    # The output from openssl s_client is verbose. We grep for "Protocol"
     TLS13_TEST=$($OPENSSL_PATH s_client -connect ${DOMAIN}:443 -tls1_3 2>&1 | grep "Protocol" | awk '{print $2}')
     if [ "$TLS13_TEST" == "TLSv1.3" ]; then
         echo "   [OK] TLSv1.3 is supported."
@@ -283,7 +266,7 @@ if command -v $OPENSSL_PATH &> /dev/null; then
 
     echo "   Checking for TLSv1.0 presence..."
     TLS10_TEST=$($OPENSSL_PATH s_client -connect ${DOMAIN}:443 -tls1_0 2>&1 | grep "Protocol" | awk '{print $2}')
-    if [ -z "$TLS10_TEST" ]; then # If empty, it means TLSv1.0 is not supported
+    if [ -z "$TLS10_TEST" ]; then
         echo "   [OK] TLSv1.0 is NOT supported."
     else
         echo "   [WARNING!] TLSv1.0 is supported. It is highly recommended to disable."
@@ -301,9 +284,8 @@ else
 fi
 echo ""
 
-# 9. Check Open Ports (basic, only for listening ports)
-echo "9. Checking open ports..."
-# List all listening TCP/UDP ports, exclude local-only listeners like 127.0.0.1
+# 8. Check Open Ports (basic, only for listening ports)
+echo "8. Checking open ports..."
 OPEN_PORTS=$(sudo ss -tulpn | grep LISTEN | awk '{print $5}' | sed 's/.*://' | sort -n | uniq | grep -v '127.0.0.1')
 if [ -z "$OPEN_PORTS" ]; then
     echo "   [OK] No actively listening non-local ports found."
