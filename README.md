@@ -35,7 +35,6 @@ These instructions will get you a copy of the project up and running on your loc
 * `openssl` (for TLS checks).
 * `ss` (from `iproute2` package, for port checks).
 
-```bash
 # Install required tools if not present (for Debian/Ubuntu)
 sudo apt update
 sudo apt install curl ufw openssl iproute2 -y
