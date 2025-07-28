@@ -39,3 +39,62 @@ These instructions will get you a copy of the project up and running on your loc
 # Install required tools if not present (for Debian/Ubuntu)
 sudo apt update
 sudo apt install curl ufw openssl iproute2 -y
+Installation
+Clone the repository:
+
+Bash
+
+git clone [https://github.com/fobaty/nginx-audit-script.git](https://github.com/fobaty/nginx-audit-script.git)
+cd nginx-audit-script
+Make the script executable:
+
+Bash
+
+chmod +x server_security_audit.sh
+🛠️ Usage
+Before running, open server_security_audit.sh and configure the DOMAIN and WEB_ROOT variables to match your server's settings.
+
+Bash
+
+# --- CONFIGURATION ---
+DOMAIN="your-domain.com" # Your domain name (e.g., example.com)
+WEB_ROOT="/var/www/[your-domain.com/html](https://your-domain.com/html)" # Root directory of your website
+# ... other configurations
+Run the script with sudo:
+
+Bash
+
+sudo ./server_security_audit.sh
+The script will output findings directly to your terminal, indicating [OK], [WARNING!], [CRITICAL!], or [INFO] statuses for each check.
+
+⚠️ Important Notes
+This script performs read-only checks and does not modify your server's configuration.
+
+Always review the script's code before running it on a production server.
+
+The SENSITIVE_PATHS list is extensive but not exhaustive. Regularly update it based on new vulnerabilities and specific applications you run.
+
+Some checks (e.g., HTTP Security Headers, SSL/TLS) are performed against https://${DOMAIN}. Ensure your domain is accessible via HTTPS.
+
+The HTPASSWD_FILE variable is for a general .htpasswd file, not specific to GoAccess. Adjust if your file is named differently or located elsewhere.
+
+🤝 Contributing
+Contributions are welcome! If you have suggestions for improvements, new checks, or bug fixes, feel free to open an issue or submit a pull request.
+
+Fork the repository.
+
+Create your feature branch (git checkout -b feature/AmazingFeature).
+
+Commit your changes (git commit -m 'Add some AmazingFeature').
+
+Push to the branch (git push origin feature/AmazingFeature).
+
+Open a Pull Request.
+
+📄 License
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+📞 Contact
+Oleksii Shataliuk - https://github.com/fobaty/
+
+Project Link: https://github.com/fobaty/nginx-audit-script
