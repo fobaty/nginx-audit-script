@@ -2,7 +2,7 @@
 
 # ==============================================================================
 # Server Security Audit Script
-# Version: 2.0
+# Version: 1.0
 # Author: Oleksii Shataliuk
 # Date: July 28, 2025
 # Description: This script performs a basic security audit of a web server
